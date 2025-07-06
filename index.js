@@ -4,6 +4,7 @@ const OpenAI = require('openai'); // Kiểm tra lại nếu cần thư viện kh
 const bodyParser = require('body-parser');
 const app = express();
 
+// Middleware CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, HEAD, OPTIONS');
@@ -16,12 +17,17 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json());
 
+// Xử lý HEAD request
 app.head('/grok', (req, res) => {
   res.sendStatus(200);
 });
 
-// Lấy API Key từ biến môi trường
-const apiKey = process.env.XAI_API_KEY || 'xai-5x6dmyosHpadpQXocDDnviwpb84D2UL3EAMAYvf09K4KGQdCPpKL6UTRDkNOaOJUqCv8w0uhrNTwl2d9';
+// Lấy API Key từ biến môi trường, loại bỏ key mặc định
+const apiKey = process.env.XAI_API_KEY;
+if (!apiKey) {
+  console.error('XAI_API_KEY is not set in environment variables');
+  process.exit(1); // Thoát nếu không có API Key
+}
 const client = new OpenAI({
   apiKey: apiKey,
   baseURL: 'https://api.x.ai/v1', // Xác nhận lại với tài liệu xAI
@@ -29,6 +35,7 @@ const client = new OpenAI({
 
 let lastMessage = { message: '', timestamp: 0 };
 
+// Xử lý POST request
 app.post('/grok', async (req, res) => {
   console.log('Received request:', req.body);
   const { message, context } = req.body;
@@ -81,6 +88,7 @@ app.post('/grok', async (req, res) => {
   }
 });
 
+// Reset lastMessage sau 5 phút không hoạt động
 setInterval(() => {
   if (lastMessage && (Date.now() - lastMessage.timestamp) > 300000) {
     console.log('Reset lastMessage due to inactivity');
@@ -88,5 +96,8 @@ setInterval(() => {
   }
 }, 60000);
 
-// Loại bỏ app.listen, Render sẽ tự quản lý cổng
-// app.listen(3000, '0.0.0.0', () => console.log('Proxy running on port 3000 at http://0.0.0.0:3000'));
+// Lắng nghe cổng từ Render
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Proxy running on port ${PORT} at http://0.0.0.0:${PORT}`);
+});
